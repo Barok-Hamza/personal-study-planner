@@ -1,4 +1,5 @@
 from datetime import date, datetime, time
+import uuid
 
 import streamlit as st
 
@@ -27,10 +28,12 @@ if submitted:
         end = calculate_end_time(scheduled_date, start_time, duration)
         st.session_state["tasks"].append(
             {
+                "id": uuid.uuid4().hex,
                 "name": task_name.strip(),
                 "start": start,
                 "end": end,
                 "duration": duration,
+                "status": "Pending",
             }
         )
         st.success("Task added.")
@@ -42,5 +45,14 @@ if st.session_state["tasks"]:
         st.write(f"Start: {task['start'].strftime('%Y-%m-%d %H:%M')}")
         st.write(f"End: {task['end'].strftime('%Y-%m-%d %H:%M')}")
         st.write(f"Duration: {task['duration']} minutes")
+        button_label = (
+            "Mark Completed" if task["status"] == "Pending" else "Undo completion"
+        )
+        if st.button(button_label, key=f"status_{task['id']}"):
+            task["status"] = (
+                "Completed" if task["status"] == "Pending" else "Pending"
+            )
+            st.rerun()
+        st.write(f"Status: {task['status']}")
 else:
     st.write("No tasks yet. Add one using the form above.")
