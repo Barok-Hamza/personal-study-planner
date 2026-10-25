@@ -1,7 +1,11 @@
 import unittest
 from datetime import date, datetime, time
 
-from task_utils import calculate_end_time, update_task
+from task_utils import (
+    calculate_end_time,
+    find_conflicting_task,
+    update_task,
+)
 
 
 class CalculateEndTimeTests(unittest.TestCase):
@@ -102,6 +106,82 @@ class TaskEditStatusTests(unittest.TestCase):
         )
 
         self.assertEqual(self.task["id"], task_id)
+
+
+class FindConflictingTaskTests(unittest.TestCase):
+    def setUp(self):
+        self.task = {
+            "id": "existing-task-id",
+            "name": "Existing task",
+            "start": datetime(2026, 10, 24, 16, 0),
+            "end": datetime(2026, 10, 24, 16, 30),
+            "duration": 30,
+            "status": "Completed",
+        }
+
+    def test_overlapping_schedule_returns_conflicting_task(self):
+        conflict = find_conflicting_task(
+            [self.task],
+            datetime(2026, 10, 24, 16, 15),
+            datetime(2026, 10, 24, 16, 45),
+        )
+
+        self.assertIs(conflict, self.task)
+
+    def test_back_to_back_schedule_is_allowed(self):
+        conflict = find_conflicting_task(
+            [self.task],
+            datetime(2026, 10, 24, 16, 30),
+            datetime(2026, 10, 24, 17, 0),
+        )
+
+        self.assertIsNone(conflict)
+
+    def test_overnight_overlap_is_detected(self):
+        overnight_task = {
+            "id": "overnight-task-id",
+            "name": "Overnight task",
+            "start": datetime(2026, 10, 24, 23, 30),
+            "end": datetime(2026, 10, 25, 1, 0),
+            "duration": 90,
+            "status": "Pending",
+        }
+
+        conflict = find_conflicting_task(
+            [overnight_task],
+            datetime(2026, 10, 25, 0, 30),
+            datetime(2026, 10, 25, 1, 30),
+        )
+
+        self.assertIs(conflict, overnight_task)
+
+    def test_non_overlapping_dates_do_not_conflict(self):
+        conflict = find_conflicting_task(
+            [self.task],
+            datetime(2026, 10, 25, 16, 0),
+            datetime(2026, 10, 25, 16, 30),
+        )
+
+        self.assertIsNone(conflict)
+
+    def test_can_exclude_task_being_edited(self):
+        conflict = find_conflicting_task(
+            [self.task],
+            self.task["start"],
+            self.task["end"],
+            exclude_task_id=self.task["id"],
+        )
+
+        self.assertIsNone(conflict)
+
+    def test_completed_task_still_conflicts(self):
+        conflict = find_conflicting_task(
+            [self.task],
+            datetime(2026, 10, 24, 16, 10),
+            datetime(2026, 10, 24, 16, 20),
+        )
+
+        self.assertIs(conflict, self.task)
 
 
 if __name__ == "__main__":

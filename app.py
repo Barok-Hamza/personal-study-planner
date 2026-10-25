@@ -3,7 +3,7 @@ from datetime import date, datetime, time
 
 import streamlit as st
 
-from task_utils import calculate_end_time, update_task
+from task_utils import calculate_end_time, find_conflicting_task, update_task
 
 st.title("Personal Study & Task Planner")
 st.write("Organize your study tasks and track your progress.")
@@ -28,17 +28,27 @@ if submitted:
     else:
         start = datetime.combine(scheduled_date, start_time)
         end = calculate_end_time(scheduled_date, start_time, duration)
-        st.session_state["tasks"].append(
-            {
-                "id": uuid.uuid4().hex,
-                "name": task_name.strip(),
-                "start": start,
-                "end": end,
-                "duration": duration,
-                "status": "Pending",
-            }
+        conflict = find_conflicting_task(
+            st.session_state["tasks"], start, end
         )
-        st.success("Task added.")
+        if conflict:
+            st.error(
+                f"Schedule conflicts with '{conflict['name']}' "
+                f"({conflict['start'].strftime('%Y-%m-%d %H:%M')} - "
+                f"{conflict['end'].strftime('%Y-%m-%d %H:%M')})."
+            )
+        else:
+            st.session_state["tasks"].append(
+                {
+                    "id": uuid.uuid4().hex,
+                    "name": task_name.strip(),
+                    "start": start,
+                    "end": end,
+                    "duration": duration,
+                    "status": "Pending",
+                }
+            )
+            st.success("Task added.")
 
 st.subheader("Your tasks")
 if st.session_state["tasks"]:
@@ -74,15 +84,32 @@ if st.session_state["tasks"]:
                 if not edited_name.strip():
                     st.error("Enter a task name before saving changes.")
                 else:
-                    update_task(
-                        task,
-                        edited_name.strip(),
-                        edited_date,
-                        edited_time,
-                        edited_duration,
+                    edited_start = datetime.combine(edited_date, edited_time)
+                    edited_end = calculate_end_time(
+                        edited_date, edited_time, edited_duration
                     )
-                    st.session_state["editing_task_id"] = None
-                    st.rerun()
+                    conflict = find_conflicting_task(
+                        st.session_state["tasks"],
+                        edited_start,
+                        edited_end,
+                        exclude_task_id=task["id"],
+                    )
+                    if conflict:
+                        st.error(
+                            f"Schedule conflicts with '{conflict['name']}' "
+                            f"({conflict['start'].strftime('%Y-%m-%d %H:%M')} - "
+                            f"{conflict['end'].strftime('%Y-%m-%d %H:%M')})."
+                        )
+                    else:
+                        update_task(
+                            task,
+                            edited_name.strip(),
+                            edited_date,
+                            edited_time,
+                            edited_duration,
+                        )
+                        st.session_state["editing_task_id"] = None
+                        st.rerun()
         elif st.session_state["deleting_task_id"] == task["id"]:
             st.warning(f"Delete '{task['name']}'?")
             if st.button("Confirm Delete", key=f"confirm_delete_{task['id']}"):

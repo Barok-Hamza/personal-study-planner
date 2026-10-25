@@ -18,6 +18,20 @@ def calculate_end_time(
     return start + timedelta(minutes=duration_minutes)
 
 
+def find_conflicting_task(
+    tasks: list[Task],
+    candidate_start: datetime,
+    candidate_end: datetime,
+    exclude_task_id: str | None = None,
+) -> Task | None:
+    for task in tasks:
+        if task["id"] == exclude_task_id:
+            continue
+        if candidate_start < task["end"] and task["start"] < candidate_end:
+            return task
+    return None
+
+
 def update_task(
     task: Task,
     name: str,
