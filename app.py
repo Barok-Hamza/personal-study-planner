@@ -11,6 +11,7 @@ st.success("Welcome! Your study planner is ready.")
 
 st.session_state.setdefault("tasks", [])
 st.session_state.setdefault("editing_task_id", None)
+st.session_state.setdefault("deleting_task_id", None)
 
 with st.form("task_form"):
     task_name = st.text_input("Task name")
@@ -46,15 +47,6 @@ if st.session_state["tasks"]:
         st.write(f"Start: {task['start'].strftime('%Y-%m-%d %H:%M')}")
         st.write(f"End: {task['end'].strftime('%Y-%m-%d %H:%M')}")
         st.write(f"Duration: {task['duration']} minutes")
-        if st.session_state["editing_task_id"] != task["id"]:
-            if st.button("Edit", key=f"edit_{task['id']}"):
-                st.session_state["editing_task_id"] = task["id"]
-                st.session_state[f"edit_name_{task['id']}"] = task["name"]
-                st.session_state[f"edit_date_{task['id']}"] = task["start"].date()
-                st.session_state[f"edit_time_{task['id']}"] = task["start"].time()
-                st.session_state[f"edit_duration_{task['id']}"] = task["duration"]
-                st.rerun()
-
         if st.session_state["editing_task_id"] == task["id"]:
             with st.form(f"edit_form_{task['id']}"):
                 edited_name = st.text_input(
@@ -91,7 +83,32 @@ if st.session_state["tasks"]:
                     )
                     st.session_state["editing_task_id"] = None
                     st.rerun()
-        else:
+        elif st.session_state["deleting_task_id"] == task["id"]:
+            st.warning(f"Delete '{task['name']}'?")
+            if st.button("Confirm Delete", key=f"confirm_delete_{task['id']}"):
+                deleting_task_id = st.session_state["deleting_task_id"]
+                st.session_state["tasks"] = [
+                    saved_task
+                    for saved_task in st.session_state["tasks"]
+                    if saved_task["id"] != deleting_task_id
+                ]
+                st.session_state["deleting_task_id"] = None
+                st.rerun()
+            if st.button("Cancel", key=f"cancel_delete_{task['id']}"):
+                st.session_state["deleting_task_id"] = None
+                st.rerun()
+        elif (
+            st.session_state["editing_task_id"] is None
+            and st.session_state["deleting_task_id"] is None
+        ):
+            if st.button("Edit", key=f"edit_{task['id']}"):
+                st.session_state["editing_task_id"] = task["id"]
+                st.session_state["deleting_task_id"] = None
+                st.session_state[f"edit_name_{task['id']}"] = task["name"]
+                st.session_state[f"edit_date_{task['id']}"] = task["start"].date()
+                st.session_state[f"edit_time_{task['id']}"] = task["start"].time()
+                st.session_state[f"edit_duration_{task['id']}"] = task["duration"]
+                st.rerun()
             button_label = (
                 "Mark Completed"
                 if task["status"] == "Pending"
@@ -101,6 +118,10 @@ if st.session_state["tasks"]:
                 task["status"] = (
                     "Completed" if task["status"] == "Pending" else "Pending"
                 )
+                st.rerun()
+            if st.button("Delete", key=f"delete_{task['id']}"):
+                st.session_state["deleting_task_id"] = task["id"]
+                st.session_state["editing_task_id"] = None
                 st.rerun()
         st.write(f"Status: {task['status']}")
 else:
