@@ -52,3 +52,28 @@ def update_task(
         scheduled_date, start_time, duration_minutes
     )
     task["duration"] = duration_minutes
+
+
+def calculate_progress(
+    tasks: list[Task], now: datetime | None = None
+) -> dict[str, int | float]:
+    if now is None:
+        now = datetime.now()
+
+    total_tasks = len(tasks)
+    completed_tasks = sum(task["status"] == "Completed" for task in tasks)
+    pending_tasks = sum(task["status"] == "Pending" for task in tasks)
+    overdue_tasks = sum(
+        task["status"] == "Pending" and task["end"] < now for task in tasks
+    )
+    completion_percentage = (
+        completed_tasks / total_tasks * 100 if total_tasks else 0
+    )
+
+    return {
+        "total": total_tasks,
+        "completed": completed_tasks,
+        "pending": pending_tasks,
+        "overdue": overdue_tasks,
+        "completion_percentage": completion_percentage,
+    }

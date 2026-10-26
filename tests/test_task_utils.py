@@ -3,6 +3,7 @@ from datetime import date, datetime, time
 
 from task_utils import (
     calculate_end_time,
+    calculate_progress,
     find_conflicting_task,
     update_task,
 )
@@ -182,6 +183,89 @@ class FindConflictingTaskTests(unittest.TestCase):
         )
 
         self.assertIs(conflict, self.task)
+
+
+class CalculateProgressTests(unittest.TestCase):
+    def setUp(self):
+        self.now = datetime(2026, 10, 25, 12, 0)
+        self.tasks = [
+            {
+                "id": "pending-overdue",
+                "name": "Overdue pending task",
+                "start": datetime(2026, 10, 25, 9, 0),
+                "end": datetime(2026, 10, 25, 10, 0),
+                "duration": 60,
+                "status": "Pending",
+            },
+            {
+                "id": "pending-current",
+                "name": "Current pending task",
+                "start": datetime(2026, 10, 25, 12, 0),
+                "end": datetime(2026, 10, 25, 13, 0),
+                "duration": 60,
+                "status": "Pending",
+            },
+            {
+                "id": "completed-past",
+                "name": "Completed task",
+                "start": datetime(2026, 10, 24, 9, 0),
+                "end": datetime(2026, 10, 24, 10, 0),
+                "duration": 60,
+                "status": "Completed",
+            },
+        ]
+
+    def test_empty_task_list_returns_zero_counts_and_percentage(self):
+        progress = calculate_progress([], self.now)
+
+        self.assertEqual(
+            progress,
+            {
+                "total": 0,
+                "completed": 0,
+                "pending": 0,
+                "overdue": 0,
+                "completion_percentage": 0,
+            },
+        )
+
+    def test_total_completed_and_pending_counts(self):
+        progress = calculate_progress(self.tasks, self.now)
+
+        self.assertEqual(progress["total"], 3)
+        self.assertEqual(progress["completed"], 1)
+        self.assertEqual(progress["pending"], 2)
+
+    def test_overdue_counts_only_pending_tasks_ending_before_now(self):
+        progress = calculate_progress(self.tasks, self.now)
+
+        self.assertEqual(progress["overdue"], 1)
+
+    def test_completed_task_with_past_end_is_not_overdue(self):
+        completed_task = self.tasks[2]
+
+        progress = calculate_progress([completed_task], self.now)
+
+        self.assertEqual(progress["overdue"], 0)
+
+    def test_task_ending_exactly_now_is_not_overdue(self):
+        task_ending_now = {
+            "id": "ends-now",
+            "name": "Task ending now",
+            "start": datetime(2026, 10, 25, 11, 0),
+            "end": self.now,
+            "duration": 60,
+            "status": "Pending",
+        }
+
+        progress = calculate_progress([task_ending_now], self.now)
+
+        self.assertEqual(progress["overdue"], 0)
+
+    def test_completion_percentage(self):
+        progress = calculate_progress(self.tasks, self.now)
+
+        self.assertAlmostEqual(progress["completion_percentage"], 100 / 3)
 
 
 if __name__ == "__main__":

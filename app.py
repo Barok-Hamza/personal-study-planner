@@ -4,7 +4,12 @@ from datetime import date, datetime, time
 import streamlit as st
 
 from task_storage import load_tasks, save_tasks
-from task_utils import calculate_end_time, find_conflicting_task, update_task
+from task_utils import (
+    calculate_end_time,
+    calculate_progress,
+    find_conflicting_task,
+    update_task,
+)
 
 
 def save_task_changes(tasks):
@@ -84,6 +89,24 @@ if submitted:
             if save_task_changes(updated_tasks):
                 st.session_state["tasks"] = updated_tasks
                 st.success("Task added.")
+
+progress = calculate_progress(st.session_state["tasks"])
+st.subheader("Progress Dashboard")
+total_column, completed_column, pending_column, overdue_column, percentage_column = (
+    st.columns(5)
+)
+total_column.metric("Total Tasks", progress["total"])
+completed_column.metric("Completed Tasks", progress["completed"])
+pending_column.metric("Pending Tasks", progress["pending"])
+overdue_column.metric("Overdue Tasks", progress["overdue"])
+percentage_column.metric(
+    "Completion",
+    f"{progress['completion_percentage']:.1f}%",
+)
+st.progress(
+    progress["completion_percentage"] / 100,
+    text=f"Completion: {progress['completion_percentage']:.1f}%",
+)
 
 st.subheader("Your tasks")
 if st.session_state["tasks"]:
